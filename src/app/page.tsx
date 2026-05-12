@@ -19,7 +19,6 @@ import {
   Calendar,
   Briefcase,
   GraduationCap,
-  ArrowUpRight,
   Menu,
   X,
   Rocket
@@ -44,6 +43,8 @@ function DynamicIslandNav() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('')
   const islandRef = useRef<HTMLDivElement>(null)
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const rafRef = useRef<number | null>(null)
 
   const navItems = [
     { name: 'About', icon: Code2 },
@@ -54,24 +55,31 @@ function DynamicIslandNav() {
     { name: 'Contact', icon: Mail },
   ]
 
+  // Throttle scroll handler with requestAnimationFrame
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 100)
-      
-      const sections = navItems.map(item => item.name.toLowerCase())
-      for (const section of sections.reverse()) {
-        const element = document.getElementById(section)
-        if (element) {
-          const rect = element.getBoundingClientRect()
-          if (rect.top <= 200) {
-            setActiveSection(section)
-            break
+      if (rafRef.current) return
+      rafRef.current = requestAnimationFrame(() => {
+        setIsScrolled(window.scrollY > 100)
+        const sections = ['about', 'skills', 'projects', 'experience', 'education', 'contact']
+        for (let i = sections.length - 1; i >= 0; i--) {
+          const element = document.getElementById(sections[i])
+          if (element) {
+            const rect = element.getBoundingClientRect()
+            if (rect.top <= 200) {
+              setActiveSection(sections[i])
+              break
+            }
           }
         }
-      }
+        rafRef.current = null
+      })
     }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (rafRef.current) cancelAnimationFrame(rafRef.current)
+    }
   }, [])
 
   useEffect(() => {
@@ -84,130 +92,115 @@ function DynamicIslandNav() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const handleMouseEnter = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current)
+    setIsExpanded(true)
+  }
+
+  const handleMouseLeave = () => {
+    closeTimerRef.current = setTimeout(() => setIsExpanded(false), 300)
+  }
+
   return (
     <motion.div
       ref={islandRef}
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 200, damping: 25, delay: 0.5 }}
-      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 transition-shadow duration-500 ${
-        isScrolled ? 'shadow-xl shadow-black/10' : ''
-      }`}
+      transition={{ type: 'spring', stiffness: 260, damping: 28, delay: 0.5 }}
+      style={{ willChange: 'transform' }}
+      className={`fixed top-4 left-1/2 -translate-x-1/2 z-50`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <motion.div
         layout
+        className="relative bg-black/95 backdrop-blur-xl overflow-hidden cursor-pointer"
+        animate={{
+          borderRadius: isExpanded ? 24 : 40,
+          boxShadow: isScrolled
+            ? '0 8px 32px rgba(0,0,0,0.18)'
+            : '0 2px 8px rgba(0,0,0,0.10)',
+        }}
+        transition={{ type: 'spring', stiffness: 350, damping: 30 }}
         onClick={() => !isExpanded && setIsExpanded(true)}
-        onMouseEnter={() => setIsExpanded(true)}
-        className="relative cursor-pointer"
       >
-        <motion.div
-          layout
-          className="relative bg-black/95 backdrop-blur-xl overflow-hidden"
-          animate={{
-            borderRadius: isExpanded ? 24 : 40,
-          }}
-          transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        >
-          <div className="relative flex items-center">
-            {/* Logo and Name - Always visible */}
-            <motion.div
-              layout
-              className="flex items-center gap-2.5 px-4 py-2.5"
-            >
-              <motion.div
-                layout
-                className="w-7 h-7 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0"
-              >
-                <span className="text-xs font-bold text-white">MI</span>
-              </motion.div>
-              
-              {/* Name - visible when collapsed */}
-              <AnimatePresence mode="wait">
-                {!isExpanded && (
-                  <motion.span
-                    key="name"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-white text-sm font-medium whitespace-nowrap"
-                  >
-                    Muhammad Issa
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </motion.div>
-
-            {/* Nav Items - visible when expanded */}
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
+        <div className="relative flex items-center">
+          {/* Logo and Name - Always visible */}
+          <div className="flex items-center gap-2.5 px-4 py-2.5">
+            <div className="w-7 h-7 rounded-full bg-neutral-700 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-white">MI</span>
+            </div>
+            
+            {/* Name - visible when collapsed */}
+            <AnimatePresence mode="wait">
+              {!isExpanded && (
+                <motion.span
+                  key="name"
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: 'auto' }}
                   exit={{ opacity: 0, width: 0 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                  className="flex items-center overflow-hidden"
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  className="text-white text-sm font-medium whitespace-nowrap overflow-hidden"
                 >
-                  <div className="flex items-center gap-0.5 px-2 py-1.5">
-                    {navItems.map((item, index) => (
-                      <motion.a
-                        key={item.name}
-                        href={`#${item.name.toLowerCase()}`}
-                        initial={{ opacity: 0, scale: 0.8, y: -10 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.8, y: -10 }}
-                        transition={{ delay: index * 0.03, type: 'spring', stiffness: 300, damping: 20 }}
-                        onClick={() => setIsExpanded(false)}
-                        className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
-                          activeSection === item.name.toLowerCase()
-                            ? 'text-white'
-                            : 'text-white/60 hover:text-white'
-                        }`}
-                      >
-                        {activeSection === item.name.toLowerCase() && (
-                          <motion.div
-                            layoutId="activeTab"
-                            className="absolute inset-0 bg-white/10 rounded-full"
-                            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                          />
-                        )}
-                        <span className="relative z-10">{item.name}</span>
-                      </motion.a>
-                    ))}
-                    
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.8 }}
-                      transition={{ delay: navItems.length * 0.03 }}
-                      className="ml-1 pl-2 border-l border-white/10"
-                    >
-                      <ThemeToggle />
-                    </motion.div>
-                  </div>
-                </motion.div>
+                  Muhammad Issa
+                </motion.span>
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
 
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.button
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              onClick={(e) => {
-                e.stopPropagation()
-                setIsExpanded(false)
-              }}
-              className="absolute -right-2 -top-2 w-6 h-6 rounded-full bg-neutral-800 border border-neutral-700 flex items-center justify-center text-white/70 hover:text-white hover:bg-neutral-700 transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+          {/* Nav Items - visible when expanded */}
+          <AnimatePresence>
+            {isExpanded && (
+              <motion.div
+                key="nav-items"
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{ type: 'spring', stiffness: 350, damping: 30 }}
+                className="flex items-center overflow-hidden"
+                style={{ willChange: 'width, opacity' }}
+              >
+                <div className="flex items-center gap-0.5 px-2 py-1.5">
+                  {navItems.map((item, index) => (
+                    <motion.a
+                      key={item.name}
+                      href={`#${item.name.toLowerCase()}`}
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ delay: index * 0.025, duration: 0.18, ease: 'easeOut' }}
+                      onClick={() => setIsExpanded(false)}
+                      className={`relative px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 ${
+                        activeSection === item.name.toLowerCase()
+                          ? 'text-white'
+                          : 'text-white/60 hover:text-white'
+                      }`}
+                    >
+                      {activeSection === item.name.toLowerCase() && (
+                        <motion.div
+                          layoutId="activeTab"
+                          className="absolute inset-0 bg-white/10 rounded-full"
+                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        />
+                      )}
+                      <span className="relative z-10">{item.name}</span>
+                    </motion.a>
+                  ))}
+                  
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ delay: navItems.length * 0.025, duration: 0.15 }}
+                    className="ml-1 pl-2 border-l border-white/10"
+                  >
+                    <ThemeToggle />
+                  </motion.div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </motion.div>
     </motion.div>
   )
@@ -856,15 +849,15 @@ function EducationSection() {
           {education.map((edu, i) => (
             <motion.div
               key={edu.degree}
-              initial={{ opacity: 0, y: 40, rotateX: -15 }}
-              animate={isInView ? { opacity: 1, y: 0, rotateX: 0 } : {}}
+              initial={{ opacity: 0, y: 30 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ 
                 type: 'spring',
-                stiffness: 50,
-                damping: 15,
-                delay: i * 0.15 
+                stiffness: 80,
+                damping: 18,
+                delay: i * 0.12 
               }}
-              whileHover={{ y: -5 }}
+              whileHover={{ y: -4 }}
             >
               <Card className="text-center hover:border-neutral-400/50 transition-all duration-300 h-full">
                 <CardHeader>

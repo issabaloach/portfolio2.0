@@ -119,6 +119,15 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  /* GPU-accelerate fixed/sticky elements so they don't repaint on scroll */
+  [style*="position: fixed"],
+  .fixed {
+    transform: translateZ(0);
+    backface-visibility: hidden;
   }
 }
 
@@ -167,4 +176,20 @@ html {
   font-family: "Bowlby One SC", sans-serif;
   font-weight: 400;
   font-style: normal;
+}
+
+/* Smooth page transitions */
+@media (prefers-reduced-motion: no-preference) {
+  :root {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Reduce all animations for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
